@@ -1,0 +1,144 @@
+---
+title: "RDescriptiveAnalytics"
+author: "Saikat Chowdhury"
+date: "March 25, 2018"
+output: html_document
+---
+
+```{r}
+#Problem Statement: Client- Baseball Team Owner.
+
+#Issue- Three key players have left the team and now need to find suitable replacements.
+
+#Data Provided - Players performance and Salary dataset.
+
+#Conditions for selecting players- The total combined salary of the three players can not exceed 15 million dollars. Their combined number of At Bats (AB) needs to be equal to or greater than the lost players. Their mean OBP had to equal to or greater than the mean OBP of the lost players
+
+```
+```{r}
+#Solution:
+#Step 1: Import first Data File and check the structure and contents of the dataframe
+batting <- read.csv('C://Users//SAIKAT//Documents//25032018RDescriptiveAnalytics//Batting.csv')
+head(batting)
+
+```
+```{r}
+str(batting)
+```
+
+```{r}
+#Step 2: Try refering the columns with $ symbol and columnname
+
+head(batting$AB)
+```
+```{r}
+#Step 3: Feature Engineering
+
+#We need to create three derived columns - Batting Average, On Base Percentage, Slugging Percentage
+
+#Batting Average: A player's batting average is the total number of runs they have scored divided by the number of times they have been out.
+
+batting$BA <- batting$H / batting$AB
+tail(batting$BA,5)
+
+```
+```{r}
+# On Base Percentage
+batting$OBP <- (batting$H + batting$BB + batting$HBP)/(batting$AB + batting$BB + batting$HBP + batting$SF)
+```
+
+```{r}
+#Slugging percentage:
+
+#Needs creationof another derived column singles (X1B)
+
+# Creating X1B (Singles)
+batting$X1B <- batting$H - batting$X2B - batting$X3B - batting$HR
+# Creating Slugging Average (SLG)
+batting$SLG <- ((1 * batting$X1B) + (2 * batting$X2B) + (3 * batting$X3B) + (4 * batting$HR) ) / batting$AB
+```
+
+```{r}
+#Step 4: Merge the salary data file with Batting Data
+
+#Load the salary data
+
+sal <- read.csv('C://Users//SAIKAT//Documents//25032018RDescriptiveAnalytics//Salaries.csv')
+```
+```{r}
+#Go through the summary of salaries dataset
+
+summary(batting)
+```
+```{r}
+#we have players playing multiple years, we'll have repetitions of playerIDs for multiple years, meaning we want to merge on both players and years.
+
+combo <- merge(batting,sal,by=c('playerID','yearID'))
+summary(combo)
+```
+```{r}
+#Let us now analyse the lost players. The lost playerID : giambja01','damonjo01','saenzol01' Subset from the dataframe these players.
+
+lost_players <- subset(combo,playerID %in% c('giambja01','damonjo01','saenzol01') )
+lost_players
+```
+```{r}
+#Let us consider only details after 2001 as the players were lost in the year after that. Subset the data for the year 2001.
+
+lost_players <- subset(lost_players,yearID == 2001)
+
+#Let us analyse only the necessary columns. so subset from the dataset only the necessary column.
+
+lost_players <- lost_players[,c('playerID','H','X2B','X3B','HR','OBP','SLG','BA','AB')]
+head(lost_players)
+```
+```{r}
+#Now we have all the information we need! Now the final task - Find Replacement Players for the key three players we lost! However, you have three constraints:
+
+#The total combined salary of the three players can not exceed 15 million dollars. Their combined number of At Bats (AB) needs to be equal to or greater than the lost players. Their mean OBP had to equal to or greater than the mean OBP of the lost players
+
+#Let us use the combo dataframe with only 2001 year data.
+
+library(dplyr)
+```
+
+```{r}
+avail.players <- filter(combo,yearID==2001)
+```
+
+```{r}
+library(ggplot2)
+```
+
+```{r}
+ggplot(avail.players,aes(x=OBP,y=salary)) + geom_point()
+```
+
+```{r}
+#There is no point in paying above 8 million. There are also a lot of players with OBP==0. Filter these players.
+
+avail.players <- filter(avail.players,salary<8000000,OBP>0)
+```
+
+```{r}
+#The total AB of the lost players is 1469. This is about 1500, meaning I should probably cut off my avail.players at 1500/3= 500 AB.
+
+avail.players <- filter(avail.players,AB >= 500)
+```
+
+```{r}
+#Sort the result player set by OBP
+
+possible <- head(arrange(avail.players,desc(OBP)),10)
+```
+
+```{r}
+#Let us analyse only the columns we are interested in OBP,AB,Salary based onplayer ID
+
+possible <- possible[,c('playerID','OBP','AB','salary')]
+```
+
+```{r}
+possible
+```
+
